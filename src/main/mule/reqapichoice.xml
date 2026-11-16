@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="3e04a3b6-354a-4e5f-8c5b-007a27ca2526" >
+		<http:listener-connection host="localhost" port="8081" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="747b4803-f3f7-4cf4-8e3a-db0287bdf58b" >
+		<http:request-connection host="training4-american-ws.cloudhub.io" port="80" />
+	</http:request-config>
+	<flow name="reqapichoiceFlow" doc:id="09188cba-bcef-4146-ba57-c4fa0a1a2b03" >
+		<http:listener doc:name="Listener" doc:id="8104cc27-44fe-45ca-b336-16fabff38125" config-ref="HTTP_Listener_config" path="/Reqchoice"/>
+		<logger level="INFO" doc:name="Logger" doc:id="a70ebf51-6a62-451f-aa7a-5165f4f1743e" />
+		<http:request method="GET" doc:name="Request" doc:id="bddd427d-8000-4736-9642-3e54d3ea4a6d" config-ref="HTTP_Request_configuration" path="/api/flights"/>
+		<ee:transform doc:name="Transform Message" doc:id="611659df-0bd6-42b9-a57a-ff45c1b445c3" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="flightsdataFailure" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
+				<ee:set-variable variableName="flightsdataNew" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
+				<ee:set-variable variableName="flightsdataSuccess" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="94c356cd-dd66-490e-b38e-852d3fee18d7" >
+			<choice doc:name="Choice" doc:id="b11d7611-70cf-4b1c-8777-24ff396566a8">
+			<when expression='#[(payload.origin == "MUA") and (payload.destination == "LAX")]'>
+					<ee:transform doc:name="Transform Message" doc:id="a2c8c213-4b45-4dcc-8d75-e8e09ea64dfd">
+						<ee:message>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="flightsdataSuccess "><![CDATA[%dw 2.0
+output application/json
+---
+vars.flightsdataSuccess + payload]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</when>
+				<when expression='#[(payload.origin == "MUA") and (payload.destination == "CLE")]'>
+					<ee:transform doc:name="Transform Message" doc:id="c9efd13c-60f2-445a-a4d4-c74aa34fdf8b" >
+						<ee:message >
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable variableName="flightsdataNew" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.flightsdataNew + payload]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</when>
+				<otherwise>
+					<ee:transform doc:name="Transform Message" doc:id="c5568c9f-abd6-4003-b20b-872ba0d03ed4">
+						<ee:message>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="flightsdataFailure"><![CDATA[%dw 2.0
+output application/json
+---
+vars.flightsdataFailure + payload]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+				</otherwise>
+		</choice>
+		</foreach>
+		<ee:transform doc:name="Transform Message" doc:id="81d256a6-69ae-4156-893d-b978e8fcade3">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+"OldFlights": vars.flightsdataSuccess,
+"NewFlights" : vars.flightsdataNew
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="bfeaea7a-00ae-4d8e-9b37-81f1f7ca721f" />
+	</flow>
+</mule>
